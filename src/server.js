@@ -4,6 +4,17 @@ import { router as apiRoutes } from "./routes/index.js";
 import {connectDB} from "./configs/mongodb.js";
 const app=express();
 
+const port = 3000;
+
+
+
+
+
+
+
+
+
 app.use("/api",apiRoutes);
+
 await connectDB();
 app.listen(PORT);
