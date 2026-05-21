@@ -1,9 +1,9 @@
-import express from 'express'
+import {Router} from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { User } from '../models/User.js'
 
-const router = express.Router()
+export const router = Router()
 
 router.post('/register', async (req, res) => {
   try {
@@ -68,4 +68,4 @@ router.post('/login', async (req, res) => {
   }
 })
 
-export default router
+
