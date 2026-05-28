@@ -1,9 +1,25 @@
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import { Menu } from './src/models/Menu.js';
-import { connectDB } from './src/configs/mongodb.js';
+You are a senior developer. I need you to fix 4 files in my backend 
+project. Edit the actual files on disk one by one.
 
-dotenv.config();
+========================================================================
+TASK 1 — Fix category enum in Menu model
+========================================================================
+
+File: /Users/aj/jsd12/sp-spin3-backend/src/models/Menu.js
+
+Find this line:
+  enum: ['fried-chicken', 'side', 'drink', 'dessert', 'combo']
+
+Replace with:
+  enum: ['chicken', 'burger', 'combo', 'drink', 'side', 'dessert']
+
+========================================================================
+TASK 2 — Replace seed data with real menu items
+========================================================================
+
+File: /Users/aj/jsd12/sp-spin3-backend/seedMenus.js
+
+Replace the entire menuItems array with this:
 
 const menuItems = [
   // CHICKEN
@@ -44,28 +60,70 @@ const menuItems = [
   { name: 'Chickskate Set', description: 'Try me -5%', price: 189, image: '', category: 'combo', cookingTime: 600 },
 ]
 
-async function seedMenus() {
-  try {
-    await connectDB();
-    console.log('Connected to database');
+Keep everything else in the file exactly the same.
+Only replace the menuItems array.
 
-    // Clear existing menus
-    await Menu.deleteMany({});
-    console.log('Cleared existing menus');
+========================================================================
+TASK 3 — Fix route URL /menu to /menus
+========================================================================
 
-    // Insert new menus
-    const result = await Menu.insertMany(menuItems);
-    console.log(`✅ Seeded ${result.length} menu items`);
-    
-    result.forEach(item => {
-      console.log(`  - ${item.name} (${item.cookingTime}s cooking time)`);
-    });
+File: /Users/aj/jsd12/sp-spin3-backend/src/routes/index.js
 
-  } catch (err) {
-    console.error('❌ Seed error:', err.message);
-  } finally {
-    process.exit(0);
-  }
-}
+Find this line:
+  router.use('/menu', menuRouter)
 
-seedMenus();
+Replace with:
+  router.use('/menus', menuRouter)
+
+========================================================================
+TASK 4 — Fix GET /menus to support all=true for owner app
+========================================================================
+
+File: /Users/aj/jsd12/sp-spin3-backend/src/routes/menu.js
+
+Find the GET / route. It currently looks like this:
+  router.get('/', async (req, res) => {
+    try {
+      const { category } = req.query;
+      const filter = category ? { category, available: true } : { available: true };
+      const menus = await Menu.find(filter).sort({ category: 1, name: 1 });
+      res.json(menus);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+Replace the entire GET / route with this:
+  router.get('/', async (req, res) => {
+    try {
+      const { category, all } = req.query
+
+      let filter = {}
+
+      if (all !== 'true') {
+        filter.available = true
+      }
+
+      if (category) {
+        filter.category = category
+      }
+
+      const menus = await Menu.find(filter).sort({ category: 1, name: 1 })
+      res.json(menus)
+    } catch (err) {
+      res.status(500).json({ message: err.message })
+    }
+  })
+
+========================================================================
+
+After ALL 4 tasks are done:
+
+1. Show me the final content of every file you changed
+2. Confirm each task was written to disk successfully
+3. Run this command and show me the output:
+   cd /Users/aj/jsd12/sp-spin3-backend && npm run dev
+4. Then run the seed script and show me the output:
+   cd /Users/aj/jsd12/sp-spin3-backend && node seedMenus.js
+5. Confirm you see MongoDB connected, server on port 3000,
+   and all 25 menu items seeded successfully

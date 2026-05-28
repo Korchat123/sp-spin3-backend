@@ -6,14 +6,24 @@ export const router = Router();
 // Get all menus
 router.get('/', async (req, res) => {
   try {
-    const { category } = req.query;
-    const filter = category ? { category, available: true } : { available: true };
-    const menus = await Menu.find(filter).sort({ category: 1, name: 1 });
-    res.json(menus);
+    const { category, all } = req.query
+
+    let filter = {}
+
+    if (all !== 'true') {
+      filter.available = true
+    }
+
+    if (category) {
+      filter.category = category
+    }
+
+    const menus = await Menu.find(filter).sort({ category: 1, name: 1 })
+    res.json(menus)
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: err.message })
   }
-});
+})
 
 // Get single menu
 router.get('/:id', async (req, res) => {

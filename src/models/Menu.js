@@ -20,7 +20,7 @@ const menuSchema = new mongoose.Schema({
   },
   category: { 
     type: String,
-    enum: ['fried-chicken', 'side', 'drink', 'dessert', 'combo'],
+    enum: ['chicken', 'burger', 'combo', 'drink', 'side', 'dessert'],
     required: true 
   },
   cookingTime: { 
