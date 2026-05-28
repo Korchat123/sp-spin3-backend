@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { router as usersRoute } from "./userRoute.js";
-export const router=Router();
+import { router as menuRouter } from "./menuRoute.js";
 
 
+export const router = Router();
 
-
-
-router.use("/user",usersRoute);
+router.use("/user", usersRoute);
+router.use("/menu", menuRouter);
