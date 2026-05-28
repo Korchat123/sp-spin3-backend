@@ -1,10 +1,18 @@
 import mongoose from 'mongoose';
 
 const orderItemSchema = new mongoose.Schema({
+  menuId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Menu'
+  },
   name: { type: String, required: true },
   quantity: { type: Number, required: true },
   price: { type: Number, required: true },
   image: { type: String },
+  cookingTime: { 
+    type: Number, 
+    description: 'Cooking time in seconds from menu'
+  },
   status: { 
     type: String, 
     enum: ['InKitchen', 'Cook', 'finished', 'cancel'], 
