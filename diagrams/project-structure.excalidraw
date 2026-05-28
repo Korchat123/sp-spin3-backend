@@ -19,9 +19,9 @@
     {
       "id": "be-dir",
       "type": "rectangle",
-      "x": 100,
+      "x": 50,
       "y": 150,
-      "width": 300,
+      "width": 280,
       "height": 450,
       "backgroundColor": "#f8f9fa",
       "strokeColor": "#242424",
@@ -30,21 +30,21 @@
     {
       "id": "be-dir-text",
       "type": "text",
-      "x": 110,
+      "x": 60,
       "y": 160,
-      "width": 280,
+      "width": 260,
       "height": 430,
-      "text": "backend/\n├── src/\n│   ├── configs/\n│   │   └── mongodb.js (DB Conn)\n│   ├── middleware/\n│   │   └── auth.js (JWT & Roles)\n│   ├── modules/\n│   │   ├── users/ (User Logic)\n│   │   ├── orders/ (Order Logic)\n│   │   └── menus/ (Menu Logic)\n│   ├── routes/\n│   │   ├── index.js (Main Router)\n│   │   └── order.js (Sub Router)\n│   └── server.js (Entry Point)\n└── .env (Secrets)",
-      "fontSize": 16,
+      "text": "backend/\n├── src/\n│   ├── configs/\n│   │   └── mongodb.js\n│   ├── middleware/\n│   │   └── auth.js\n│   ├── modules/\n│   │   ├── users/\n│   │   ├── orders/\n│   │   ├── menus/\n│   │   ├── ingredients/\n│   │   └── wastes/\n│   ├── routes/\n│   │   ├── index.js\n│   │   └── order.js\n│   └── server.js\n└── .env",
+      "fontSize": 14,
       "fontFamily": 3,
       "textAlign": "left"
     },
     {
       "id": "fe-dir",
       "type": "rectangle",
-      "x": 500,
+      "x": 360,
       "y": 150,
-      "width": 300,
+      "width": 280,
       "height": 450,
       "backgroundColor": "#fff5f5",
       "strokeColor": "#e4002b",
@@ -53,12 +53,35 @@
     {
       "id": "fe-dir-text",
       "type": "text",
-      "x": 510,
+      "x": 370,
       "y": 160,
-      "width": 280,
+      "width": 260,
       "height": 430,
-      "text": "frontend/\n├── src/\n│   ├── component/ (Atomic UI)\n│   ├── context/ (Shared Logic)\n│   │   ├── ShopProvider.jsx\n│   │   └── userContext/\n│   ├── pages/ (Route Views)\n│   ├── services/ (API Calls)\n│   │   └── orderService.js\n│   ├── utils/ (Helpers)\n│   │   └── api.js (Axios-like)\n│   └── App.jsx (Routing)\n├── owner-app/ (Dashboard)\n└── public/ (Assets)",
-      "fontSize": 16,
+      "text": "frontend/ (Customer)\n├── src/\n│   ├── component/\n│   ├── context/\n│   │   ├── ShopProvider.jsx\n│   │   └── userContext/\n│   ├── pages/\n│   ├── services/\n│   ├── utils/\n│   │   └── api.js\n│   └── App.jsx\n└── public/",
+      "fontSize": 14,
+      "fontFamily": 3,
+      "textAlign": "left"
+    },
+    {
+      "id": "owner-dir",
+      "type": "rectangle",
+      "x": 670,
+      "y": 150,
+      "width": 280,
+      "height": 450,
+      "backgroundColor": "#e7f3ff",
+      "strokeColor": "#0078d4",
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "owner-dir-text",
+      "type": "text",
+      "x": 680,
+      "y": 160,
+      "width": 260,
+      "height": 430,
+      "text": "frontend/owner-app/\n├── src/\n│   ├── api/ (Feature Serv.)\n│   │   ├── stock.js\n│   │   └── orders.js\n│   ├── context/\n│   │   └── AuthContext.jsx\n│   ├── pages/ (Admin Views)\n│   │   ├── Dashboard.jsx\n│   │   └── Stock.jsx\n│   ├── utils/\n│   │   └── api.js\n│   └── main.jsx\n└── tailwind.config.js",
+      "fontSize": 14,
       "fontFamily": 3,
       "textAlign": "left"
     },
@@ -80,20 +103,30 @@
       "type": "arrow",
       "x": 400,
       "y": 90,
-      "width": -150,
+      "width": -200,
       "height": 60,
       "strokeColor": "#242424",
-      "points": [[0, 0], [-150, 60]]
+      "points": [[0, 0], [-200, 60]]
     },
     {
       "id": "arrow-root-fe",
       "type": "arrow",
-      "x": 550,
+      "x": 500,
       "y": 90,
-      "width": 150,
+      "width": 0,
       "height": 60,
       "strokeColor": "#e4002b",
-      "points": [[0, 0], [150, 60]]
+      "points": [[0, 0], [0, 60]]
+    },
+    {
+      "id": "arrow-root-owner",
+      "type": "arrow",
+      "x": 550,
+      "y": 90,
+      "width": 200,
+      "height": 60,
+      "strokeColor": "#0078d4",
+      "points": [[0, 0], [200, 60]]
     }
   ],
   "appState": {
