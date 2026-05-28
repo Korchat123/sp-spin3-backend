@@ -13,3 +13,28 @@ Content-Type: application/json
     "category": "main",
     "active_status": true
 }
+
+
+###update Menu
+PUT  http://localhost:3000/api/v1/menu/
+Content-Type: application/json
+
+{
+    "name": "test menu",
+    "price": 100,
+    "quantity": 10,
+    "category": "main",
+    "active_status": true
+}
+
+###delete Menu
+DELETE  http://localhost:3000/api/v1/menu/
+Content-Type: application/json
+
+{
+    "name": "test menu",
+    "price": 100,
+    "quantity": 10,
+    "category": "main",
+    "active_status": true
+}

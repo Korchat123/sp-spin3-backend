@@ -8,3 +8,4 @@ export const router = Router();
 router.use('/auth', authRouter);
 router.use('/orders', orderRouter);
 router.use('/payments', paymentRouter);
+router.use("/api/menus", menuRoutes);
