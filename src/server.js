@@ -10,12 +10,19 @@ const app = express()
 const PORT = process.env.PORT || 5000
 
 app.use(cors({
-  origin: [
-    'https://sp-spin3-frontend.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:3000'
-  ],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://sp-spin3-frontend.vercel.app',
+      'https://sp-spin3-owner.vercel.app',
+    ]
+    if (!origin || origin.startsWith('http://localhost')) {
+      return callback(null, true)
+    }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+    callback(new Error('Not allowed by CORS'))
+  },
   credentials: true
 }))
 app.use(express.json())
@@ -26,3 +33,4 @@ await connectDB()
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
+
