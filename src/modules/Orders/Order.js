@@ -1,46 +1,42 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
+import { OrderItem } from '../orderItems/OrderItem.js';
+ 
+// const orderItemSchema = new mongoose.Schema({
+//   menuId: { 
+//     type: mongoose.Schema.Types.ObjectId, 
+//     ref: 'Menu'
+//   },
+//   name: { type: String, required: true },
+//   quantity: { type: Number, required: true },
+//   price: { type: Number, required: true },
+//   image: { type: String },
+//   cookingTime: { 
+//     type: Number, 
+//     description: 'Cooking time in seconds from menu'
+//   },
+//   status: { 
+//     type: String, 
+//     enum: ['InKitchen', 'Cook', 'finished', 'cancel'], 
+//     default: 'InKitchen' 
+//   },
+//   orderTime: { type: Date, default: Date.now }
+// });
 
-const mongoose = require("mongoose");
-
-const orderSchema = new mongoose.Schema(
-  {
-    order_type: {
-      type: String,
-      enum: ["DINE_IN", "TAKEAWAY", "DELIVERY"],
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: ["PENDING", "COOKING", "SERVED", "COMPLETED", "CANCELLED"],
-      required: true,
-    },
-    table_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Table",
-      default: null,
-    },
-    user_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    promotion: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Promotion",
-      default: null,
-    },
-    subtotal: { type: Number, required: true },
-    discount_applied: { type: Number, default: 0 },
-    total_tax: { type: Number, default: 0 },
-    total_price: { type: Number, required: true },
-    payment_method: {
-      type: String,
-      enum: ["cash", "card", "qr", null],
-      default: null,
-    }, // เช่น CASH, CREDIT_CARD, PROMPTPAY
-    payment_time: { type: Date, default: null },
+const orderSchema = new mongoose.Schema({
+  type: { type: String, enum: ['delivery', 'Onsite'], required: true },
+  customer: {
+    name: { type: String, required: true },
+    contact: { type: String },
+    address: { type: String },
+    note: { type: String }
   },
-  { timestamps: true },
-);
+  orderList: [OrderItem.schema],
+  status: { 
+    type: String, 
+    enum: ['pending', 'preparing', 'completed', 'cancelled'], 
+    default: 'pending' 
+  },
+  createdAt: { type: Date, default: Date.now }
+});
 
-export const Order = mongoose.model("Order", orderSchema);
+export const Order = mongoose.model('Order', orderSchema);

@@ -1,8 +1,8 @@
 ###Get promotion
-GET http://localhost:3000/api/promotion
+GET http://localhost:5000/api/orders/
 
 ###Create promotion
-POST http://localhost:3000/api/promotion
+POST http://localhost:5000/api/promotion
 Content-Type: application/json
 
 {

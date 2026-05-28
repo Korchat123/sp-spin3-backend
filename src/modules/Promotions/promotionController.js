@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Promotion } from "../promotions/Promotion.js";
+import { Promotion } from "./Promotion.js";
 
 export const router = Router();
 
