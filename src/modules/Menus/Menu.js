@@ -1,45 +1,41 @@
-import mongoose from 'mongoose';
+import mongoose from 'mongoose'
 
-const menuSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true,
-    trim: true 
+const menuSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, 'Please provide menu name'],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    price: {
+      type: Number,
+      required: [true, 'Please provide price'],
+      min: [0, 'Price cannot be negative'],
+    },
+    image: {
+      type: String,
+      default: '',
+    },
+    category: {
+      type: String,
+      required: [true, 'Please provide category'],
+      enum: ['chicken', 'burger', 'combo', 'drink', 'side', 'dessert'],
+    },
+    cookingTime: {
+      type: Number,
+      default: 0,
+    },
+    available: {
+      type: Boolean,
+      default: true,
+    },
   },
-  description: { 
-    type: String,
-    trim: true 
-  },
-  price: { 
-    type: Number, 
-    required: true,
-    min: 0 
-  },
-  image: { 
-    type: String 
-  },
-  category: { 
-    type: String,
-    enum: ['chicken', 'burger', 'combo', 'drink', 'side', 'dessert'],
-    required: true 
-  },
-  cookingTime: { 
-    type: Number, 
-    required: true,
-    description: 'Estimated cooking time in seconds'
-  },
-  available: { 
-    type: Boolean, 
-    default: true 
-  },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
-  },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
-  }
-});
+  { timestamps: true }
+)
 
-export const Menu = mongoose.model('Menu', menuSchema);
+export const Menu = mongoose.model('Menu', menuSchema)
