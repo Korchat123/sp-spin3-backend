@@ -5,6 +5,6 @@ export const router = Router();
 
 router.get('/', getOrders);
 router.get('/:id', getOrderById);
-router.post('/', createOrder);
-router.patch('/:orderId/item/:itemId', updateOrderItemStatus);
-router.patch('/:id', updateOrderStatus);
+//router.post('/', createOrder);
+//router.patch('/:orderId/item/:itemId', updateOrderItemStatus);
+//router.patch('/:id', updateOrderStatus);
