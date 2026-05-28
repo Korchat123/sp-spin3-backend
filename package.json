@@ -2,6 +2,14 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
+  "homepage": "https://github.com/Pathomratan/sp-spin3-backend#readme",
+  "bugs": {
+    "url": "https://github.com/Pathomratan/sp-spin3-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pathomratan/sp-spin3-backend.git"
+  },
   "license": "ISC",
   "author": "",
   "type": "module",
