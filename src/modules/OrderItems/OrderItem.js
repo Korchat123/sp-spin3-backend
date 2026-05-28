@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const orderItemSchema = new mongoose.Schema(
+export const orderItemSchema = new mongoose.Schema(
   {
     order_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -14,6 +14,29 @@ const orderItemSchema = new mongoose.Schema(
     },
     quantity: { type: Number, required: true, min: 1 },
     price_at_purchase: { type: Number, required: true },
+    status: {
+      type: String,
+      enum: ["pending", "preparing", "completed", "cancelled"],
+      default: "pending",
+    },
+  },
+  { timestamps: true },
+);
+
+export const embeddedOrderItemSchema = new mongoose.Schema(
+  {
+    menu_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Menu",
+      required: true,
+    },
+    quantity: { type: Number, required: true, min: 1 },
+    price_at_purchase: { type: Number, required: true },
+    status: {
+      type: String,
+      enum: ["pending", "preparing", "completed", "cancelled"],
+      default: "pending",
+    },
   },
   { timestamps: true },
 );

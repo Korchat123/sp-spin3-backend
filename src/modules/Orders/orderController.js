@@ -54,7 +54,7 @@ export const updateOrderStatus = async (req, res) => {
     const updatedOrder = await Order.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
-      { new: true }
+      { validateBeforeSave: true, returnDocument: 'after' }
     );
     res.json(updatedOrder);
   } catch (err) {
