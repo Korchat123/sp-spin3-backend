@@ -1,40 +1,41 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose'
 
 const menuSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "กรุณาระบุชื่อเมนู"],
-      trim: true, // ตัดช่องว่างหัวท้าย
+      required: [true, 'Please provide menu name'],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+      default: '',
     },
     price: {
       type: Number,
-      min: [0, "ราคาต้องไม่ติดลบ"],
-      required: [true, "กรุณาระบุราคา"],
+      required: [true, 'Please provide price'],
+      min: [0, 'Price cannot be negative'],
     },
-    quantity: {
-      type: Number,
-      required: [true, "กรุณาระบุจำนวน"],
-      min: [0, "จำนวนต้องไม่ติดลบ"],
-      default: 0, // ตั้งค่าเริ่มต้นเป็น 0
+    image: {
+      type: String,
+      default: '',
     },
     category: {
       type: String,
-      required: [true, "ระบุประเภท"],
-      enum: ["main", "side", "dessert", "drink"],
-      require: true,
+      required: [true, 'Please provide category'],
+      enum: ['chicken', 'burger', 'combo', 'drink', 'side', 'dessert'],
     },
-    image_url: {
-      type: String,
-      default: null,
+    cookingTime: {
+      type: Number,
+      default: 0,
     },
-    active_status: {
+    available: {
       type: Boolean,
       default: true,
     },
   },
+  { timestamps: true }
+)
 
-  { timestamps: true },
-);
-
-export const Menu = mongoose.model("Menu", menuSchema);
+export const Menu = mongoose.model('Menu', menuSchema)
