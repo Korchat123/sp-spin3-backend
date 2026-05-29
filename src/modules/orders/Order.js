@@ -9,6 +9,8 @@ const orderSchema = new mongoose.Schema({
     address: { type: String },
     note: { type: String }
   },
+  bookingDate: { type: String },
+  bookingTime: { type: String },
   orderList: [embeddedOrderItemSchema],
   payment: {
     method: { type: String },

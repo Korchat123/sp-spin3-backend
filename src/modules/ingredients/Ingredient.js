@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const ingredienSchema = new mongoose.Schema(
   {
+    ingredient_index: { type: Number, required: true, default: 0 },
     name: { type: String, required: true },
     quantity: { type: Number, required: true, default: 0 },
     unit: { type: String, required: true }, // เช่น kg, grams, liters

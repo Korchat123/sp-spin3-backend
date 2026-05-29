@@ -3,6 +3,7 @@ import {
   getAllIngredients,
   getIngredientsByStatus,
   getIngredient,
+  updateIngredient,
   updateIngredientStock,
   decreaseIngredientStock,
   createIngredient,
@@ -21,6 +22,9 @@ router.get('/:id', getIngredient);
 
 // POST create ingredient
 router.post('/', createIngredient);
+
+// PUT update ingredient details
+router.put('/:id', updateIngredient);
 
 // PUT update ingredient stock (set exact quantity)
 router.put('/:id/stock', updateIngredientStock);
