@@ -1,4 +1,69 @@
 import { Order } from './Order.js';
+import { Ingredient } from '../ingredients/Ingredient.js';
+import { Menu } from '../menus/Menu.js';
+import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
+
+const buildIngredientRequirements = async (orderList = []) => {
+  const requirements = new Map();
+  const menuIds = [
+    ...new Set(
+      orderList
+        .map((item) => item?.menu_id)
+        .filter(Boolean)
+        .map((menuId) => String(menuId)),
+    ),
+  ];
+
+  if (menuIds.length === 0) return requirements;
+
+  const menus = await Menu.find({ _id: { $in: menuIds } }).populate('ingredients.ingredient');
+  const menuMap = new Map(menus.map((menu) => [String(menu._id), menu]));
+
+  orderList.forEach((item) => {
+    const menu = menuMap.get(String(item.menu_id || ''));
+    if (!menu) return;
+
+    const orderQuantity = Number(item.quantity || 1);
+    menu.ingredients.forEach((entry) => {
+      const ingredient = entry.ingredient;
+      if (!ingredient) return;
+
+      const ingredientId = String(ingredient._id);
+      const requiredQuantity = Number(entry.quantity || 0) * orderQuantity;
+      const current = requirements.get(ingredientId) || {
+        ingredient,
+        requiredQuantity: 0,
+      };
+      current.requiredQuantity += requiredQuantity;
+      requirements.set(ingredientId, current);
+    });
+  });
+
+  return requirements;
+};
+
+const validateIngredientRequirements = (requirements) => {
+  for (const { ingredient, requiredQuantity } of requirements.values()) {
+    if (ingredient.active_status === false) {
+      return `${ingredient.name} is not active`;
+    }
+    if (Number(ingredient.quantity || 0) < requiredQuantity) {
+      return `${ingredient.name} stock is not enough`;
+    }
+  }
+  return '';
+};
+
+const deductIngredientRequirements = async (requirements) => {
+  const updates = [...requirements.entries()].map(([ingredientId, { requiredQuantity }]) =>
+    Ingredient.updateOne(
+      { _id: ingredientId },
+      { $inc: { quantity: -requiredQuantity } },
+    ),
+  );
+
+  await Promise.all(updates);
+};
 
 export const getOrders = async (req, res) => {
   try {
@@ -20,9 +85,17 @@ export const getOrderById = async (req, res) => {
 };
 
 export const createOrder = async (req, res) => {
-  const order = new Order(req.body);
   try {
+    const requirements = await buildIngredientRequirements(req.body.orderList || []);
+    const stockError = validateIngredientRequirements(requirements);
+    if (stockError) {
+      return res.status(400).json({ message: stockError });
+    }
+
+    const order = new Order(req.body);
     const newOrder = await order.save();
+    await deductIngredientRequirements(requirements);
+    await broadcastIngredientSnapshot();
     res.status(201).json(newOrder);
   } catch (err) {
     res.status(400).json({ message: err.message });

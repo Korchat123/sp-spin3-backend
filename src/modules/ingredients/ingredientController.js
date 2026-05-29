@@ -1,4 +1,5 @@
 import { Ingredient } from './Ingredient.js';
+import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
 
 export async function getAllIngredients(req, res) {
   try {
@@ -67,6 +68,7 @@ export async function updateIngredientStock(req, res) {
       return res.status(404).json({ error: 'Ingredient not found' });
     }
 
+    await broadcastIngredientSnapshot();
     res.json(ingredient);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -115,6 +117,7 @@ export async function updateIngredient(req, res) {
       return res.status(404).json({ error: 'Ingredient not found' });
     }
 
+    await broadcastIngredientSnapshot();
     res.json(ingredient);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -140,6 +143,7 @@ export async function decreaseIngredientStock(req, res) {
     ingredient.quantity -= amount;
     await ingredient.save();
 
+    await broadcastIngredientSnapshot();
     res.json(ingredient);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -173,6 +177,7 @@ export async function createIngredient(req, res) {
     });
 
     await ingredient.save();
+    await broadcastIngredientSnapshot();
     res.status(201).json(ingredient);
   } catch (err) {
     res.status(500).json({ error: err.message });

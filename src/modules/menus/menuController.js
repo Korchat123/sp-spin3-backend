@@ -1,5 +1,6 @@
 import { Menu } from './Menu.js';
 import { MenuLog } from './MenuLog.js';
+import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
 
 const withStockStatus = (menu) => {
   const item = menu.toObject ? menu.toObject() : menu;
@@ -132,6 +133,7 @@ export const updateMenu = async (req, res) => {
 
     const updatedMenu = await menu.save();
     await updatedMenu.populate('ingredients.ingredient');
+    await broadcastIngredientSnapshot();
     res.json(withStockStatus(updatedMenu));
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -167,6 +169,7 @@ export const updateMenuIngredients = async (req, res) => {
       performedByRole: req.user?.role || 'cook',
     });
 
+    await broadcastIngredientSnapshot();
     res.json(withStockStatus(updatedMenu));
   } catch (err) {
     res.status(400).json({ message: err.message });
