@@ -16,5 +16,6 @@ app.use(express.json());
 app.use("/api", apiRoutes);
 await connectDB();
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  console.log(`Server running on port ${PORT}`)
+})
+
