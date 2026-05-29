@@ -12,6 +12,7 @@
     "start": "node --watch src/server.js",
     "seed:ingredients": "node --env-file=.env seedIngredients.js",
     "seed:menus": "node --env-file=.env seedMenus.js",
+    "update:menu-ingredients": "node --env-file=.env updateMenuIngredients.js",
     "seed:orders": "node --env-file=.env seedOrders.js"
   },
   "dependencies": {
