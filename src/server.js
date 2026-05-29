@@ -14,19 +14,12 @@ const allowedOrigins = [
   'http://localhost:5174',
   'https://spc-owner.vercel.app',
   'https://spc-customer.vercel.app',
-  'https://sp-spin3-frontend.vercel.app'
+  'https://sp-spin3-frontend.vercel.app',
 ]
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
+app.use(cors({allowlist: allowedOrigins, credentials: true
     }
-  },
-  credentials: true,
-}))
+))
 app.use(express.json())
 app.use('/api', apiRoutes)
 
