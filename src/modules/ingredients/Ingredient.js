@@ -9,6 +9,8 @@ const ingredienSchema = new mongoose.Schema(
     price_per_unit: { type: Number, required: true },
     low_stock_threshold: { type: Number, required: true, default: 0 },
     active_status: { type: Boolean, default: true },
+    expiryDate: { type: Date, default: null },
+    expiredAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

@@ -6,6 +6,7 @@ import { Order } from '../modules/orders/Order.js';
 import { Promotion } from '../modules/promotions/Promotion.js';
 import { User } from '../modules/users/User.js';
 import { Waste } from '../modules/wastes/Waste.js';
+import { processExpiredIngredientLots } from '../modules/ingredients/inventoryLifecycle.js';
 
 export const router = Router();
 
@@ -80,7 +81,7 @@ const toStockLot = (ingredient) => ({
   unit: ingredient.unit,
   price: ingredient.price_per_unit,
   reorderPoint: ingredient.low_stock_threshold,
-  expiryDate: null,
+  expiryDate: ingredient.expiryDate || null,
   active: ingredient.active_status,
 });
 
@@ -147,6 +148,7 @@ router.get('/summary', ownerOnly, async (req, res) => {
 
 router.get('/stock', ownerOnly, async (req, res) => {
   try {
+    await processExpiredIngredientLots();
     const ingredients = await Ingredient.find().sort({ name: 1 });
     res.json(ingredients.map(toStockLot));
   } catch (err) {
@@ -161,14 +163,19 @@ router.patch('/stock/:id', ownerOnly, async (req, res) => {
     if (req.body.price !== undefined) updates.price_per_unit = Number(req.body.price);
     if (req.body.reorderPoint !== undefined) updates.low_stock_threshold = Number(req.body.reorderPoint);
     if (req.body.active !== undefined) updates.active_status = Boolean(req.body.active);
+    if (req.body.expiryDate !== undefined) updates.expiryDate = req.body.expiryDate ? new Date(req.body.expiryDate) : null;
+    if (updates.quantity !== undefined && updates.quantity <= 0) updates.active_status = false;
 
-    const ingredient = await Ingredient.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    const ingredient = await Ingredient.findById(req.params.id);
 
     if (!ingredient) return res.status(404).json({ message: 'Stock item not found' });
-    res.json(toStockLot(ingredient));
+    Object.assign(ingredient, updates);
+    if (ingredient.quantity > 0 && ingredient.expiryDate && ingredient.expiryDate > new Date()) {
+      ingredient.expiredAt = null;
+    }
+    ingredient.active_status = ingredient.quantity > 0 && ingredient.active_status !== false;
+    const saved = await ingredient.save();
+    res.json(toStockLot(saved));
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -176,6 +183,7 @@ router.patch('/stock/:id', ownerOnly, async (req, res) => {
 
 router.get('/waste', ownerOnly, async (req, res) => {
   try {
+    await processExpiredIngredientLots();
     const waste = await Waste.find()
       .populate('ingredient')
       .populate('user', 'name surname email')

@@ -1,8 +1,10 @@
 import { Ingredient } from './Ingredient.js';
 import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
+import { processExpiredIngredientLots } from './inventoryLifecycle.js';
 
 export async function getAllIngredients(req, res) {
   try {
+    await processExpiredIngredientLots();
     const ingredients = await Ingredient.find().sort({ ingredient_index: 1, name: 1 });
     res.json(ingredients);
   } catch (err) {
@@ -12,6 +14,7 @@ export async function getAllIngredients(req, res) {
 
 export async function getIngredientsByStatus(req, res) {
   try {
+    await processExpiredIngredientLots();
     const ingredients = await Ingredient.find({ active_status: true }).sort({
       ingredient_index: 1,
       name: 1,
@@ -41,6 +44,7 @@ export async function getIngredientsByStatus(req, res) {
 
 export async function getIngredient(req, res) {
   try {
+    await processExpiredIngredientLots();
     const ingredient = await Ingredient.findById(req.params.id);
     if (!ingredient) {
       return res.status(404).json({ error: 'Ingredient not found' });
@@ -53,20 +57,25 @@ export async function getIngredient(req, res) {
 
 export async function updateIngredientStock(req, res) {
   try {
-    const { quantity } = req.body;
+    const { quantity, expiryDate } = req.body;
     if (typeof quantity !== 'number') {
       return res.status(400).json({ error: 'Quantity must be a number' });
     }
 
-    const ingredient = await Ingredient.findByIdAndUpdate(
-      req.params.id,
-      { quantity },
-      { new: true }
-    );
-
+    const ingredient = await Ingredient.findById(req.params.id);
     if (!ingredient) {
       return res.status(404).json({ error: 'Ingredient not found' });
     }
+
+    ingredient.quantity = quantity;
+    if (expiryDate !== undefined) {
+      ingredient.expiryDate = expiryDate ? new Date(expiryDate) : null;
+    }
+    if (ingredient.quantity > 0 && ingredient.expiryDate && ingredient.expiryDate > new Date()) {
+      ingredient.expiredAt = null;
+    }
+    ingredient.active_status = ingredient.quantity > 0;
+    await ingredient.save();
 
     await broadcastIngredientSnapshot();
     res.json(ingredient);
@@ -84,6 +93,7 @@ export async function updateIngredient(req, res) {
       'price_per_unit',
       'low_stock_threshold',
       'active_status',
+      'expiryDate',
     ];
     const updates = {};
 
@@ -106,6 +116,13 @@ export async function updateIngredient(req, res) {
         updates[field] = Number(updates[field]);
       }
     });
+
+    if (updates.expiryDate !== undefined) {
+      updates.expiryDate = updates.expiryDate ? new Date(updates.expiryDate) : null;
+    }
+    if (updates.quantity !== undefined && updates.quantity <= 0) {
+      updates.active_status = false;
+    }
 
     const ingredient = await Ingredient.findByIdAndUpdate(
       req.params.id,
@@ -141,6 +158,9 @@ export async function decreaseIngredientStock(req, res) {
     }
 
     ingredient.quantity -= amount;
+    if (ingredient.quantity <= 0) {
+      ingredient.active_status = false;
+    }
     await ingredient.save();
 
     await broadcastIngredientSnapshot();
@@ -152,7 +172,7 @@ export async function decreaseIngredientStock(req, res) {
 
 export async function createIngredient(req, res) {
   try {
-    const { ingredient_index, name, quantity, unit, price_per_unit, low_stock_threshold } =
+    const { ingredient_index, name, quantity, unit, price_per_unit, low_stock_threshold, expiryDate } =
       req.body;
 
     if (!name || !unit || price_per_unit === undefined) {
@@ -174,6 +194,7 @@ export async function createIngredient(req, res) {
       price_per_unit,
       low_stock_threshold: low_stock_threshold || 0,
       active_status: true,
+      expiryDate: expiryDate ? new Date(expiryDate) : null,
     });
 
     await ingredient.save();

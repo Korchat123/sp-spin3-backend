@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import { connectDB } from './configs/mongodb.js'
 import { router as apiRoutes } from './routes/index.js'
 import { router as ownerCompatRoutes } from './routes/ownerCompat.js'
+import { processExpiredIngredientLots } from './modules/ingredients/inventoryLifecycle.js'
 import { initIngredientSocket } from './realtime/ingredientSocket.js'
 
 dotenv.config()
@@ -31,7 +32,17 @@ app.use('/api', apiRoutes)
 await connectDB()
 initIngredientSocket(server)
 
+const sweepExpiredIngredientLots = async () => {
+  try {
+    await processExpiredIngredientLots()
+  } catch (err) {
+    console.error('Expired ingredient sweep failed:', err.message)
+  }
+}
+
+await sweepExpiredIngredientLots()
+setInterval(sweepExpiredIngredientLots, 10 * 60 * 1000)
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
-

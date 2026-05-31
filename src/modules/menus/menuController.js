@@ -1,6 +1,7 @@
 import { Menu } from './Menu.js';
 import { MenuLog } from './MenuLog.js';
 import { Ingredient } from '../ingredients/Ingredient.js';
+import { processExpiredIngredientLots } from '../ingredients/inventoryLifecycle.js';
 import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
 import { broadcastSSE } from '../../utils/sse.js';
 
@@ -83,6 +84,7 @@ const withStockStatus = (menu) => {
 
 export const getMenus = async (req, res) => {
   try {
+    await processExpiredIngredientLots();
     const { category, all } = req.query;
     let filter = {};
 
@@ -105,6 +107,7 @@ export const getMenus = async (req, res) => {
 
 export const getMenuById = async (req, res) => {
   try {
+    await processExpiredIngredientLots();
     const menu = await Menu.findById(req.params.id).populate('ingredients.ingredient');
     if (!menu) return res.status(404).json({ message: 'Menu item not found' });
     res.json(withStockStatus(menu));

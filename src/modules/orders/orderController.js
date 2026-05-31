@@ -1,6 +1,7 @@
 import { Order } from './Order.js';
 import { Ingredient } from '../ingredients/Ingredient.js';
 import { Menu } from '../menus/Menu.js';
+import { processExpiredIngredientLots } from '../ingredients/inventoryLifecycle.js';
 import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
 
 const normalizeOrderItemQuantity = (quantity) => {
@@ -73,6 +74,7 @@ const deductIngredientRequirements = async (requirements) => {
 
 export const getOrders = async (req, res) => {
   try {
+    await processExpiredIngredientLots();
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
@@ -82,6 +84,7 @@ export const getOrders = async (req, res) => {
 
 export const getOrderById = async (req, res) => {
   try {
+    await processExpiredIngredientLots();
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
@@ -92,6 +95,7 @@ export const getOrderById = async (req, res) => {
 
 export const createOrder = async (req, res) => {
   try {
+    await processExpiredIngredientLots({ broadcast: false });
     const orderList = Array.isArray(req.body.orderList)
       ? req.body.orderList.map((item) => ({
           ...item,
