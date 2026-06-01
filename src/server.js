@@ -1,13 +1,17 @@
 import express from 'express'
+import { createServer } from 'http'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { connectDB } from './configs/mongodb.js'
 import { router as apiRoutes } from './routes/index.js'
+import { router as ownerCompatRoutes } from './routes/ownerCompat.js'
+import { initIngredientSocket } from './realtime/ingredientSocket.js'
 
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 5001;
+const app = express()
+const PORT = process.env.PORT || 5000
+const server = createServer(app)
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -27,11 +31,17 @@ app.use(cors({
   credentials: true,
 }))
 app.use(express.json())
+app.use('/api/api', ownerCompatRoutes)
 app.use('/api', apiRoutes)
 
 await connectDB()
+initIngredientSocket(server)
 
+<<<<<<< HEAD
 const server = app.listen(PORT, () => {
+=======
+server.listen(PORT, () => {
+>>>>>>> 32d5a7ff8af9c129e52314edcca468a42337b18a
   console.log(`Server running on port ${PORT}`)
 })
 

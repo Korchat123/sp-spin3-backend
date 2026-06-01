@@ -21,14 +21,22 @@
     "seed:ingredients": "node --env-file=.env seedIngredients.js",
     "seed:menus": "node --env-file=.env seedMenus.js",
     "update:menu-ingredients": "node --env-file=.env updateMenuIngredients.js",
-    "seed:orders": "node --env-file=.env seedOrders.js"
+    "sync:ingredient-indexes": "node --env-file=.env syncIngredientIndexes.js",
+    "seed:orders": "node --env-file=.env seedOrders.js",
+    "migrate:owner-schema": "node --env-file=.env migrateOwnerSchema.js",
+    "upload:assets": "node --env-file=.env uploadExistingImages.js",
+    "update:menu-images": "node --env-file=.env updateMenuImagesFromCloudinary.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.6.2"
+    "mongoose": "^9.6.2",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "ws": "^8.21.0"
   }
 }
