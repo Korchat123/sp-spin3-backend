@@ -2,7 +2,6 @@ import { Order } from './Order.js';
 import { Ingredient } from '../ingredients/Ingredient.js';
 import { Menu } from '../menus/Menu.js';
 import { processExpiredIngredientLots, consumeFromLots, syncIngredientState } from '../ingredients/inventoryLifecycle.js';
-import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
 
 const normalizeOrderItemQuantity = (quantity) => {
   const numericQuantity = Number(quantity);
@@ -10,7 +9,7 @@ const normalizeOrderItemQuantity = (quantity) => {
   return Math.trunc(numericQuantity);
 };
 
-const buildIngredientRequirements = async (orderList = []) => {
+export const buildIngredientRequirements = async (orderList = []) => {
   const requirements = new Map();
   const menuIds = [
     ...new Set(
@@ -49,7 +48,7 @@ const buildIngredientRequirements = async (orderList = []) => {
   return requirements;
 };
 
-const validateIngredientRequirements = (requirements) => {
+export const validateIngredientRequirements = (requirements) => {
   for (const { ingredient, requiredQuantity } of requirements.values()) {
     if (ingredient.active_status === false) {
       return `${ingredient.name} is not active`;
@@ -61,7 +60,7 @@ const validateIngredientRequirements = (requirements) => {
   return '';
 };
 
-const deductIngredientRequirements = async (requirements) => {
+export const deductIngredientRequirements = async (requirements) => {
   for (const [ingredientId, { requiredQuantity }] of requirements.entries()) {
     await consumeFromLots(ingredientId, requiredQuantity, 'OUT', 'Order placed');
     await syncIngredientState(ingredientId);
@@ -71,6 +70,26 @@ const deductIngredientRequirements = async (requirements) => {
 const ITEM_DONE_STATUSES = new Set(['finished', 'completed', 'cancel', 'cancelled']);
 const ITEM_ACTIVE_STATUSES = new Set(['Cook', 'preparing']);
 const ORDER_TERMINAL_STATUSES = new Set(['completed', 'delivered', 'cancelled']);
+
+export const calculateOrderTotal = (order) => {
+  const items = Array.isArray(order?.orderList) ? order.orderList : [];
+  const subtotal = items.reduce((sum, item) => {
+    const quantity = normalizeOrderItemQuantity(item.quantity);
+    return sum + Number(item.price || item.price_at_purchase || 0) * quantity;
+  }, 0);
+  const tax = subtotal * 0.07;
+  return Math.round((subtotal + tax) * 100) / 100;
+};
+
+const isOrderOwner = (order, user) => {
+  if (!order || !user?.id) return false;
+  return String(order.customer?.userId || '') === String(user.id);
+};
+
+const canReadOrder = (order, user) => {
+  if (['owner', 'cook', 'cashier', 'rider'].includes(user?.role)) return true;
+  return user?.role === 'customer' && isOrderOwner(order, user);
+};
 
 const getNextOrderStatusFromItems = (order) => {
   const items = Array.isArray(order?.orderList) ? order.orderList : [];
@@ -98,7 +117,11 @@ const reconcileOrderStatus = async (order) => {
 export const getOrders = async (req, res) => {
   try {
     await processExpiredIngredientLots();
-    const orders = await Order.find().sort({ createdAt: -1 });
+    const query =
+      req.user?.role === 'customer'
+        ? { 'customer.userId': String(req.user.id) }
+        : {};
+    const orders = await Order.find(query).sort({ createdAt: -1 });
     const reconciledOrders = await Promise.all(orders.map(reconcileOrderStatus));
     res.json(reconciledOrders);
   } catch (err) {
@@ -111,6 +134,7 @@ export const getOrderById = async (req, res) => {
     await processExpiredIngredientLots();
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!canReadOrder(order, req.user)) return res.status(403).json({ message: 'Access denied' });
     res.json(await reconcileOrderStatus(order));
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -133,10 +157,16 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: stockError });
     }
 
-    const order = new Order({ ...req.body, orderList });
+    const order = new Order({
+      ...req.body,
+      customer: {
+        ...(req.body.customer || {}),
+        userId: String(req.user.id),
+      },
+      orderList,
+      status: 'pending',
+    });
     const newOrder = await order.save();
-    await deductIngredientRequirements(requirements);
-    await broadcastIngredientSnapshot();
     res.status(201).json(newOrder);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -171,6 +201,19 @@ export const updateOrderStatus = async (req, res) => {
     const allowedStatuses = ['pending', 'preparing', 'completed', 'delivery', 'finished', 'delivered', 'cancelled'];
     const updates = {};
 
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    const isCustomer = req.user?.role === 'customer';
+    if (isCustomer) {
+      if (!isOrderOwner(order, req.user)) return res.status(403).json({ message: 'Access denied' });
+      if (req.body.status !== 'cancelled' || order.status !== 'pending') {
+        return res.status(403).json({ message: 'Customers can only cancel pending orders' });
+      }
+    } else if (!['owner', 'cook', 'cashier', 'rider'].includes(req.user?.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
     if (req.body.status) {
       if (!allowedStatuses.includes(req.body.status)) {
         return res.status(400).json({ message: 'Invalid order status' });
@@ -182,7 +225,6 @@ export const updateOrderStatus = async (req, res) => {
     if (req.body.riderNote !== undefined) updates.riderNote = req.body.riderNote;
 
     const updatedOrder = await Order.findByIdAndUpdate(req.params.id, updates, { new: true });
-    if (!updatedOrder) return res.status(404).json({ message: 'Order not found' });
     res.json(updatedOrder);
   } catch (err) {
     res.status(400).json({ message: err.message });
