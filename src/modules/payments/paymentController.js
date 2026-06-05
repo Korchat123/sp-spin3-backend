@@ -2,10 +2,8 @@ import { Order } from '../orders/Order.js';
 import {
   buildIngredientRequirements,
   calculateOrderTotal,
-  deductIngredientRequirements,
   validateIngredientRequirements,
 } from '../orders/orderController.js';
-import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
 
 const isStaffPaymentUser = (user) => ['owner', 'cashier'].includes(user?.role);
 const isOrderOwner = (order, user) => String(order.customer?.userId || '') === String(user?.id || '');
@@ -61,16 +59,14 @@ export const processPayment = async (req, res) => {
       return res.status(402).json({ message: 'Payment failed' });
     }
 
-    order.status = 'preparing';
+    order.status = 'pending';
     order.payment = {
       method: paymentMethod,
       amount,
       transactionId: paymentResult.transactionId,
       paidAt: new Date()
     };
-    await deductIngredientRequirements(requirements);
     await order.save();
-    await broadcastIngredientSnapshot();
 
     res.json({
       success: true,
