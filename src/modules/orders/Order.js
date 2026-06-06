@@ -5,6 +5,11 @@ const orderSchema = new mongoose.Schema({
   type: { type: String, enum: ['delivery', 'Onsite'], required: true },
   orderId: { type: String, unique: true },
   user_id: { type: String, required: true },
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
   customer: {
     userId: { type: String },
     email: { type: String },
@@ -14,6 +19,13 @@ const orderSchema = new mongoose.Schema({
     address: { type: String },
     note: { type: String },
     kitchenNote: { type: String }
+  },
+  customerSnapshot: {
+    name: { type: String },
+    phone: { type: String },
+    email: { type: String },
+    address: { type: String },
+    note: { type: String },
   },
   bookingDate: { type: String },
   bookingTime: { type: String },
@@ -28,6 +40,7 @@ const orderSchema = new mongoose.Schema({
     slipUrl: { type: String },
     paidAt: { type: Date }
   },
+  receiptUrl: { type: String },
   evidenceImage: { type: String },
   deliveredAt: { type: Date },
   inventoryDeductedAt: { type: Date },
@@ -38,5 +51,11 @@ const orderSchema = new mongoose.Schema({
   },
   createdAt: { type: Date, default: Date.now }
 });
+
+orderSchema.index({ createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ customerId: 1, createdAt: -1 });
+orderSchema.index({ user_id: 1, createdAt: -1 });
+orderSchema.index({ 'customer.userId': 1, createdAt: -1 });
 
 export const Order = mongoose.model('Order', orderSchema);
