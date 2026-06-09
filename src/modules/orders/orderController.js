@@ -23,18 +23,46 @@ const getTodayDateValue = () => new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 }).format(new Date());
 
+const SCHEDULED_COOK_LEAD_MINUTES = 10;
+
+const getOrderMode = (orderBody) => String(orderBody?.customer?.note || '').split('|')[0];
+
 export const isReservationOrder = (orderBody) =>
-  String(orderBody?.customer?.note || '').split('|')[0] === 'reserve' ||
+  getOrderMode(orderBody) === 'reserve' ||
   Boolean(orderBody?.reservationPax && orderBody?.bookingDate && orderBody?.bookingTime);
 
 export const isFutureReservationOrder = (orderBody) => {
-  const orderMode = String(orderBody?.customer?.note || '').split('|')[0];
+  const orderMode = getOrderMode(orderBody);
   return (orderMode === 'reserve' || isReservationOrder(orderBody)) &&
     String(orderBody?.bookingDate || '') > getTodayDateValue();
 };
 
 const isDueReservationOrder = (order) =>
   isReservationOrder(order) && String(order?.bookingDate || '') <= getTodayDateValue();
+
+const getScheduledCookStartAt = (order) => {
+  const orderMode = getOrderMode(order);
+  if (!['pickup', 'reserve'].includes(orderMode) && !isReservationOrder(order)) return null;
+  if (!order?.bookingDate || !order?.bookingTime) return null;
+
+  const serviceTime = String(order.bookingTime).match(/\d{1,2}:\d{2}/)?.[0];
+  if (!serviceTime) return null;
+
+  const serviceAt = new Date(`${order.bookingDate}T${serviceTime}:00+07:00`);
+  if (Number.isNaN(serviceAt.getTime())) return null;
+  return new Date(serviceAt.getTime() - SCHEDULED_COOK_LEAD_MINUTES * 60 * 1000);
+};
+
+const assertScheduledCookWindow = (order) => {
+  const cookStartAt = getScheduledCookStartAt(order);
+  if (!cookStartAt || Date.now() >= cookStartAt.getTime()) return;
+
+  const error = new Error(
+    `This scheduled order can only start cooking 10 minutes before pickup or reservation time.`,
+  );
+  error.statusCode = 409;
+  throw error;
+};
 
 const isDataImage = (value) =>
   typeof value === 'string' && /^data:image\/(png|jpe?g|webp);base64,/i.test(value);
@@ -362,12 +390,17 @@ export const updateOrderItemStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid item status' });
     }
 
+    const existingOrder = await Order.findOne({ _id: orderId, 'orderList._id': itemId });
+    if (!existingOrder) return res.status(404).json({ message: 'Order or item not found' });
+    if (status === 'Cook' || status === 'preparing') {
+      assertScheduledCookWindow(existingOrder);
+    }
+
     const order = await Order.findOneAndUpdate(
       { _id: orderId, 'orderList._id': itemId },
       { $set: { 'orderList.$.status': status } },
       { new: true }
     );
-    if (!order) return res.status(404).json({ message: 'Order or item not found' });
 
     const reconciled = await reconcileOrderStatus(order);
     await broadcastTableOrderUpdate();
