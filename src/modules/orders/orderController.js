@@ -6,6 +6,7 @@ import { IngredientLot } from '../ingredients/IngredientLot.js';
 import { Menu } from '../menus/Menu.js';
 import { User } from '../users/User.js';
 import { Delivery } from '../delivery/Delivery.js';
+import { Waste } from '../wastes/Waste.js';
 import cloudinary from '../../configs/cloudinary.js';
 import { processExpiredIngredientLots, consumeFromLots, syncIngredientState } from '../ingredients/inventoryLifecycle.js';
 import { broadcastIngredientSnapshot } from '../../realtime/ingredientSocket.js';
@@ -327,7 +328,42 @@ const getNextOrderStatusFromItems = (order) => {
 const isRedoItemTransition = (fromStatus, toStatus) =>
   toStatus === 'InKitchen' && REDO_SOURCE_ITEM_STATUSES.has(fromStatus);
 
-const deductRedoItemInventory = async (order, item, { session } = {}) => {
+const getRedoWasteReason = (order, date = new Date()) =>
+  `Redo order ${order.orderId || order._id} at ${date.toISOString()}`;
+
+const createRedoWasteEntries = async (order, item, requirements, { session, user } = {}) => {
+  const date = new Date();
+  const reason = getRedoWasteReason(order, date);
+  const recordedBy = user?.role ? `${user.role} ${user.id || ''}`.trim() : 'Cook';
+
+  const wasteEntries = [...requirements.values()]
+    .map(({ ingredient, requiredQuantity }) => {
+      const quantity = Number(requiredQuantity || 0);
+      if (!ingredient || quantity <= 0) return null;
+      const pricePerUnit = Number(ingredient.price_per_unit || 0);
+
+      return {
+        ingredient: ingredient._id,
+        user: user?.id || undefined,
+        itemName: `${item?.name || 'Redo item'} - ${ingredient.name || 'Ingredient'}`,
+        quantity,
+        unit: ingredient.unit || '',
+        estimatedCost: quantity * pricePerUnit,
+        recordedBy,
+        date,
+        quantity_wasted: quantity,
+        reason,
+        total_cost: quantity * pricePerUnit,
+      };
+    })
+    .filter(Boolean);
+
+  if (wasteEntries.length > 0) {
+    await Waste.create(wasteEntries, { session });
+  }
+};
+
+const deductRedoItemInventory = async (order, item, { session, user } = {}) => {
   const requirements = await buildIngredientRequirements([item], { session });
   const stockError = validateIngredientRequirements(requirements);
   if (stockError) {
@@ -336,6 +372,7 @@ const deductRedoItemInventory = async (order, item, { session } = {}) => {
     throw error;
   }
 
+  await createRedoWasteEntries(order, item, requirements, { session, user });
   await deductIngredientRequirements(requirements, {
     session,
     order: order._id,
@@ -534,7 +571,7 @@ export const updateOrderItemStatus = async (req, res) => {
 
         const lockedItem = lockedOrder.orderList.id(itemId);
         if (isRedoItemTransition(lockedItem?.status, status)) {
-          await deductRedoItemInventory(lockedOrder, lockedItem, { session });
+          await deductRedoItemInventory(lockedOrder, lockedItem, { session, user: req.user });
           shouldBroadcastIngredientSnapshot = true;
         }
 
