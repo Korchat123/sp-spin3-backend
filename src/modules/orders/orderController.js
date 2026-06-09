@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Order } from './Order.js';
 import { getNextOrderId } from './orderId.js';
 import { Ingredient } from '../ingredients/Ingredient.js';
+import { IngredientLot } from '../ingredients/IngredientLot.js';
 import { Menu } from '../menus/Menu.js';
 import { User } from '../users/User.js';
 import { Delivery } from '../delivery/Delivery.js';
@@ -146,16 +147,13 @@ export const validateIngredientRequirements = (requirements) => {
     if (ingredient.active_status === false) {
       return `${ingredient.name} is not active`;
     }
-    if (Number(ingredient.quantity || 0) < requiredQuantity) {
-      return `${ingredient.name} stock is not enough`;
-    }
   }
   return '';
 };
 
-export const deductIngredientRequirements = async (requirements, { session } = {}) => {
+export const deductIngredientRequirements = async (requirements, { session, order } = {}) => {
   for (const [ingredientId, { requiredQuantity }] of requirements.entries()) {
-    await consumeFromLots(ingredientId, requiredQuantity, 'OUT', 'Order placed', { session });
+    await consumeFromLots(ingredientId, requiredQuantity, 'OUT', 'Order placed', { session, order });
     await syncIngredientState(ingredientId, { session });
   }
 };
@@ -171,8 +169,57 @@ const deductOrderInventoryIfNeeded = async (order, { session } = {}) => {
     throw error;
   }
 
-  await deductIngredientRequirements(requirements, { session });
+  await deductIngredientRequirements(requirements, { session, order: order._id });
   order.inventoryDeductedAt = new Date();
+};
+
+const COOK_STARTED_ITEM_STATUSES = new Set(['Cook', 'preparing', 'finished', 'completed', 'ready', 'delivery']);
+
+const hasStartedCooking = (order) =>
+  Array.isArray(order?.orderList) &&
+  order.orderList.some((item) => COOK_STARTED_ITEM_STATUSES.has(item?.status));
+
+const restoreOrderInventoryIfPossible = async (order, { session } = {}) => {
+  if (!order?.inventoryDeductedAt || hasStartedCooking(order)) return false;
+
+  const movements = await IngredientLot.find({
+    order: order._id,
+    type: 'OUT',
+    sourceLots: { $exists: true, $ne: [] },
+  }).session(session || null);
+
+  if (movements.length === 0) return false;
+
+  const affectedIngredientIds = new Set();
+
+  for (const movement of movements) {
+    for (const source of movement.sourceLots || []) {
+      const quantity = Number(source.quantity || 0);
+      if (!source.lot || quantity <= 0) continue;
+      await IngredientLot.updateOne(
+        { _id: source.lot },
+        { $inc: { remainingQuantity: quantity } },
+        { session },
+      );
+    }
+
+    await IngredientLot.create([{
+      ingredient: movement.ingredient,
+      quantity: Math.abs(Number(movement.quantity || 0)),
+      type: 'ADJUSTMENT',
+      reason: `Returned cancelled order ${order.orderId || order._id}`,
+      order: order._id,
+    }], { session });
+
+    affectedIngredientIds.add(String(movement.ingredient));
+  }
+
+  for (const ingredientId of affectedIngredientIds) {
+    await syncIngredientState(ingredientId, { session });
+  }
+
+  order.inventoryDeductedAt = undefined;
+  return affectedIngredientIds.size > 0;
 };
 
 export const processDueReservationInventory = async () => {
@@ -323,6 +370,7 @@ export const getOrderById = async (req, res) => {
 };
 
 export const createOrder = async (req, res) => {
+  let session;
   try {
     await processExpiredIngredientLots({ broadcast: false });
     
@@ -378,11 +426,28 @@ export const createOrder = async (req, res) => {
       orderList,
       status: 'pending',
     });
-    const newOrder = await order.save();
+    let shouldBroadcastIngredientSnapshot = false;
+    let newOrder;
+    if (!isFutureReservationOrder(order)) {
+      session = await mongoose.startSession();
+      await session.withTransaction(async () => {
+        await deductOrderInventoryIfNeeded(order, { session });
+        newOrder = await order.save({ session });
+      });
+      shouldBroadcastIngredientSnapshot = true;
+    } else {
+      newOrder = await order.save();
+    }
+
+    if (shouldBroadcastIngredientSnapshot) {
+      await broadcastIngredientSnapshot();
+    }
     await broadcastTableOrderUpdate();
     res.status(201).json(newOrder);
   } catch (err) {
     res.status(err.statusCode || 400).json({ message: err.message });
+  } finally {
+    if (session) await session.endSession();
   }
 };
 
@@ -409,6 +474,11 @@ export const updateOrderItemStatus = async (req, res) => {
     );
 
     const reconciled = await reconcileOrderStatus(order);
+    const restoredInventory =
+      reconciled.status === 'cancelled' &&
+      await restoreOrderInventoryIfPossible(reconciled);
+    if (restoredInventory) await reconciled.save();
+    if (restoredInventory) await broadcastIngredientSnapshot();
     await broadcastTableOrderUpdate();
     res.json(reconciled);
   } catch (err) {
@@ -428,8 +498,11 @@ export const updateOrderStatus = async (req, res) => {
     const isCustomer = req.user?.role === 'customer';
     if (isCustomer) {
       if (!isOrderOwner(order, req.user)) return res.status(403).json({ message: 'Access denied' });
-      if (req.body.status !== 'cancelled' || order.status !== 'pending') {
-        return res.status(403).json({ message: 'Customers can only cancel pending orders' });
+      if (req.body.status !== 'cancelled') {
+        return res.status(403).json({ message: 'Customers can only cancel orders' });
+      }
+      if (hasStartedCooking(order) || ORDER_TERMINAL_STATUSES.has(order.status)) {
+        return res.status(403).json({ message: 'This order can no longer be cancelled' });
       }
     } else if (!['owner', 'cook', 'cashier', 'rider'].includes(req.user?.role)) {
       return res.status(403).json({ message: 'Access denied' });
@@ -454,7 +527,22 @@ export const updateOrderStatus = async (req, res) => {
     Object.assign(order, updates);
 
     let updatedOrder;
-    if (req.body.status === 'preparing' && !order.inventoryDeductedAt && !isFutureReservationOrder(order)) {
+    if (req.body.status === 'cancelled' && order.inventoryDeductedAt && !hasStartedCooking(order)) {
+      session = await mongoose.startSession();
+      await session.withTransaction(async () => {
+        const lockedOrder = await Order.findById(req.params.id).session(session);
+        if (!lockedOrder) {
+          const error = new Error('Order not found');
+          error.statusCode = 404;
+          throw error;
+        }
+
+        Object.assign(lockedOrder, updates);
+        const restoredInventory = await restoreOrderInventoryIfPossible(lockedOrder, { session });
+        updatedOrder = await lockedOrder.save({ session });
+        shouldBroadcastIngredientSnapshot = restoredInventory;
+      });
+    } else if (req.body.status === 'preparing' && !order.inventoryDeductedAt && !isFutureReservationOrder(order)) {
       session = await mongoose.startSession();
       await session.withTransaction(async () => {
         const lockedOrder = await Order.findById(req.params.id).session(session);
