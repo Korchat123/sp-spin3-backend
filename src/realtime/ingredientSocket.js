@@ -6,17 +6,19 @@ import { broadcastSSE } from '../utils/sse.js';
 
 
 let ingredientSocketServer;
+const STOCK_EPSILON = 0.000001;
 
 const withStockStatus = (menu) => {
   const item = menu.toObject ? menu.toObject() : menu;
   const linkedIngredients = Array.isArray(item.ingredients) ? item.ingredients : [];
+  const hasRecipe = linkedIngredients.length > 0;
   const missingIngredients = linkedIngredients
     .filter((entry) => {
       const ingredient = entry.ingredient;
       return (
         !ingredient ||
         ingredient.active_status === false ||
-        Number(ingredient.quantity || 0) < Number(entry.quantity || 0)
+        Number(ingredient.quantity || 0) + STOCK_EPSILON < Number(entry.quantity || 0)
       );
     })
     .map((entry) => ({
@@ -28,10 +30,14 @@ const withStockStatus = (menu) => {
 
   return {
     ...item,
-    soldOut: item.available === false || missingIngredients.length > 0,
+    hasRecipe,
+    hiddenFromCustomerMenu: !hasRecipe,
+    soldOut: item.available === false || !hasRecipe || missingIngredients.length > 0,
     soldOutReason:
       item.available === false
         ? 'Menu unavailable'
+        : !hasRecipe
+          ? 'Recipe ingredients are not assigned'
         : missingIngredients.length > 0
           ? 'Ingredient stock is not enough'
           : '',
@@ -133,7 +139,7 @@ export async function broadcastIngredientSnapshot() {
     lastMenuStatusMap = currentStatusMap;
     broadcastSSE({
       type: 'menu:update',
-      menus: processedMenus,
+      menus: processedMenus.filter((menu) => menu.hasRecipe),
     });
   }
 

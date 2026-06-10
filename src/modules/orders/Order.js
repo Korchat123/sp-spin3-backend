@@ -32,6 +32,17 @@ const orderSchema = new mongoose.Schema({
   tableId: { type: String },
   reservationPax: { type: Number },
   note_global: { type: String },
+  rider: {
+    userId: String,
+    name: String,
+    phone: String,
+    vehicle: String,
+    plate: String,
+    image: String,
+    photoUrl: String,
+    profileImage: String,
+    avatar: String,
+  },
   orderList: [embeddedOrderItemSchema],
   payment: {
     method: { type: String },
@@ -65,5 +76,12 @@ orderSchema.index({ customerId: 1, createdAt: -1 });
 orderSchema.index({ user_id: 1, createdAt: -1 });
 orderSchema.index({ 'customer.userId': 1, createdAt: -1 });
 orderSchema.index({ type: 1, status: 1, createdAt: -1 });
+
+// Virtual: alias orderList as items for frontend compatibility
+orderSchema.virtual('items').get(function () {
+  return this.orderList;
+});
+orderSchema.set('toJSON', { virtuals: true });
+orderSchema.set('toObject', { virtuals: true });
 
 export const Order = mongoose.model('Order', orderSchema);
