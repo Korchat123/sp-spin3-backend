@@ -28,6 +28,7 @@ const getTodayDateValue = () => new Intl.DateTimeFormat('en-CA', {
 
 const PICKUP_COOK_LEAD_MINUTES = 30;
 const RESERVATION_COOK_LEAD_MINUTES = 30;
+const DEFAULT_RESERVATION_THRESHOLDS = { oneTwoMin: 300, threeSixMin: 600, sevenTenMin: 1000 };
 
 const getOrderMode = (orderBody) => String(orderBody?.customer?.note || '').split('|')[0];
 
@@ -499,20 +500,17 @@ export const createOrder = async (req, res) => {
     // Reservation minimum order validation
     if (req.body.reservationPax) {
       const configDoc = await Settings.findOne({ key: 'reservationThresholds' });
-      const config = configDoc?.value || { oneTwoMin: 600, threeSixMin: 1200, sevenTenMin: 2500 };
+      const config = { ...DEFAULT_RESERVATION_THRESHOLDS, ...(configDoc?.value || {}) };
       const pax = Number(req.body.reservationPax);
+      const orderTotal = calculateOrderTotal({ orderList });
 
-      const subTotal = req.body.subTotal || orderList.reduce((sum, item) => {
-        return sum + Number(item.price || item.price_at_purchase || 0) * item.quantity;
-      }, 0);
-
-      if (pax <= 2 && subTotal < config.oneTwoMin) {
+      if (pax <= 2 && orderTotal < config.oneTwoMin) {
         return res.status(400).json({ message: 'Order total does not meet minimum for 1-2 people' });
       }
-      if (pax <= 6 && subTotal < config.threeSixMin) {
+      if (pax <= 6 && orderTotal < config.threeSixMin) {
         return res.status(400).json({ message: 'Order total does not meet minimum for 3-6 people' });
       }
-      if (pax <= 10 && subTotal < config.sevenTenMin) {
+      if (pax <= 10 && orderTotal < config.sevenTenMin) {
         return res.status(400).json({ message: 'Order total does not meet minimum for 7-10 people' });
       }
     }

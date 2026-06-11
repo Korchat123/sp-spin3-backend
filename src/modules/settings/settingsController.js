@@ -1,12 +1,14 @@
 import { Settings } from './Settings.js'
 
+const DEFAULT_RESERVATION_THRESHOLDS = { oneTwoMin: 300, threeSixMin: 600, sevenTenMin: 1000 }
+
 export const getBookingConfig = async (req, res) => {
   try {
     const doc = await Settings.findOne({ key: 'reservationThresholds' })
     if (!doc) {
-      return res.json({ oneTwoMin: 600, threeSixMin: 1200, sevenTenMin: 2500 })
+      return res.json(DEFAULT_RESERVATION_THRESHOLDS)
     }
-    return res.json(doc.value)
+    return res.json({ ...DEFAULT_RESERVATION_THRESHOLDS, ...doc.value })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
