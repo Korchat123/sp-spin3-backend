@@ -360,7 +360,7 @@ const createRedoWasteEntries = async (order, item, requirements, { session, user
     .filter(Boolean);
 
   if (wasteEntries.length > 0) {
-    await Waste.create(wasteEntries, { session });
+    await Waste.create(wasteEntries, { session, ordered: true });
   }
 };
 
